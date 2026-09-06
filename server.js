@@ -5,10 +5,14 @@ const fetch = require('node-fetch');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Middleware
 app.use(cors());
 app.use(express.static(__dirname));
 
-// Fallback mock data generator (agar API fail ho)
+// Favicon handle
+app.get('/favicon.ico', (req, res) => res.status(204).end());
+
+// Fallback mock data generator (agar Yahoo par data nahi hai)
 function getMockQuote(symbol) {
   const last = Math.random() * 1000 + 10;
   const chg = (Math.random() - 0.5) * 10;
@@ -116,4 +120,5 @@ app.get('/api/quotes', async (req, res) => {
   }
 });
 
+// Start server
 app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
