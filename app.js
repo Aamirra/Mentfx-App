@@ -178,6 +178,9 @@ function toggleHeatmap() {
     } catch(e) { console.log("Chart not ready"); }
 }
 
+// ========== SYMBOLS LISTS (from symbols-data.js) ==========
+let currentSymbols = psxList;
+
 // ========== LIVE DATA FETCHING ==========
 async function fetchQuote(symbol) {
   try {
@@ -309,7 +312,7 @@ chartArea.addEventListener('drop', function(e) {
     }
 });
 
-// ---------- Chart Init (try-catch wrapped) ----------
+// ---------- Chart Init (Fixed for v4/v5 compatibility) ----------
 let chart = null;
 let candleSeries = null;
 try {
@@ -322,7 +325,19 @@ try {
         grid: { vertLines: { color: '#1e222d' }, horzLines: { color: '#1e222d' } },
         timeScale: { timeVisible: true, secondsVisible: false }
     });
-    candleSeries = chart.addCandlestickSeries({ upColor: '#26a69a', downColor: '#ef5350', borderVisible: false });
+    
+    // Check if new API (v4+) is available
+    if (typeof chart.addCandlestickSeries === 'function') {
+        // Old API (v3)
+        candleSeries = chart.addCandlestickSeries({ upColor: '#26a69a', downColor: '#ef5350', borderVisible: false });
+    } else {
+        // New API (v4+)
+        candleSeries = chart.addSeries(LightweightCharts.CandlestickSeries, {
+            upColor: '#26a69a',
+            downColor: '#ef5350',
+            borderVisible: false
+        });
+    }
 } catch(e) {
     console.log("Chart init failed:", e);
 }
@@ -353,7 +368,7 @@ categoryDropdown.addEventListener('change', function() {
 // ---------- Initial Load ----------
 renderDynamicButtons();
 updateTables();
-loadChart(psxList[0]);
+loadChart('BTC-USD');
 
 // ---------- Auto Refresh (every 30 sec) ----------
 setInterval(async () => {
