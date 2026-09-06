@@ -333,8 +333,8 @@ function initChart() {
         chart = LightweightCharts.createChart(document.getElementById('chart'), {
             width: chartWidth,
             height: chartHeight,
-            layout: { background: { type: 'solid', color: '#0e1117' }, textColor: '#d1d4dc' },
-            grid: { vertLines: { color: '#1e222d' }, horzLines: { color: '#1e222d' } },
+            layout: { background: { type: 'solid', color: '#ffffff' }, textColor: '#000000' },
+            grid: { vertLines: { visible: false }, horzLines: { visible: false } },
             timeScale: { timeVisible: true, secondsVisible: false },
             rightPriceScale: { borderColor: '#2a2e39' }
         });
