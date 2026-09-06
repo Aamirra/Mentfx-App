@@ -6,19 +6,44 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(cors());
-app.use(express.static('public'));
+app.use(express.static(__dirname));
 
-// Yahoo Finance endpoints
-const YAHOO_BASE = 'https://query1.finance.yahoo.com/v8/finance/chart';
+// Fallback mock data generator (agar API fail ho)
+function getMockQuote(symbol) {
+  const last = Math.random() * 1000 + 10;
+  const chg = (Math.random() - 0.5) * 10;
+  const vol = Math.floor(Math.random() * 5000000) + 100000;
+  return { sym: symbol, last, chg, vol };
+}
 
-// Get quote data (last price, change %, volume)
+function getMockCandles(symbol) {
+  const candles = [];
+  let price = Math.random() * 200 + 50;
+  const today = new Date();
+  for (let i = 100; i >= 0; i--) {
+    const time = today.getTime() / 1000 - i * 86400;
+    const open = price;
+    const change = (Math.random() - 0.5) * 5;
+    const close = open + change;
+    const high = Math.max(open, close) + Math.random() * 2;
+    const low = Math.min(open, close) - Math.random() * 2;
+    candles.push({ time, open, high, low, close });
+    price = close;
+  }
+  return candles;
+}
+
+// API: Single quote (with fallback)
 app.get('/api/quote/:symbol', async (req, res) => {
   const symbol = req.params.symbol;
   try {
-    const response = await fetch(`${YAHOO_BASE}/${symbol}?interval=1d&range=1mo`);
+    const response = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1mo`);
     const data = await response.json();
-    const result = data.chart.result[0];
-    const meta = result.meta;
+    if (!data.chart || !data.chart.result || data.chart.result.length === 0) {
+      console.log(`No Yahoo data for ${symbol}, using mock`);
+      return res.json(getMockQuote(symbol));
+    }
+    const meta = data.chart.result[0].meta;
     const quote = {
       sym: symbol,
       last: meta.regularMarketPrice,
@@ -27,20 +52,24 @@ app.get('/api/quote/:symbol', async (req, res) => {
     };
     res.json(quote);
   } catch (error) {
-    console.error('Quote error:', error);
-    res.status(500).json({ error: 'Failed to fetch quote' });
+    console.error(`Error fetching quote ${symbol}:`, error.message);
+    res.json(getMockQuote(symbol));
   }
 });
 
-// Get candlestick data for chart
+// API: Candles (with fallback)
 app.get('/api/candles/:symbol', async (req, res) => {
   const symbol = req.params.symbol;
   try {
-    const response = await fetch(`${YAHOO_BASE}/${symbol}?interval=1d&range=3mo`);
+    const response = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=3mo`);
     const data = await response.json();
+    if (!data.chart || !data.chart.result || data.chart.result.length === 0) {
+      console.log(`No Yahoo candles for ${symbol}, using mock`);
+      return res.json(getMockCandles(symbol));
+    }
     const result = data.chart.result[0];
     const candles = result.timestamp.map((time, index) => ({
-      time: time,
+      time,
       open: result.indicators.quote[0].open[index],
       high: result.indicators.quote[0].high[index],
       low: result.indicators.quote[0].low[index],
@@ -48,12 +77,12 @@ app.get('/api/candles/:symbol', async (req, res) => {
     }));
     res.json(candles);
   } catch (error) {
-    console.error('Candles error:', error);
-    res.status(500).json({ error: 'Failed to fetch candles' });
+    console.error(`Error fetching candles ${symbol}:`, error.message);
+    res.json(getMockCandles(symbol));
   }
 });
 
-// Batch quote for multiple symbols
+// API: Batch quotes (with fallback for each symbol)
 app.get('/api/quotes', async (req, res) => {
   const symbols = req.query.symbols?.split(',').filter(s => s);
   if (!symbols || symbols.length === 0) {
@@ -61,19 +90,28 @@ app.get('/api/quotes', async (req, res) => {
   }
   try {
     const results = await Promise.all(symbols.map(async (sym) => {
-      const response = await fetch(`${YAHOO_BASE}/${sym}?interval=1d&range=1mo`);
-      const data = await response.json();
-      const meta = data.chart.result[0].meta;
-      return {
-        sym,
-        last: meta.regularMarketPrice,
-        chg: ((meta.regularMarketPrice - meta.chartPreviousClose) / meta.chartPreviousClose) * 100,
-        vol: meta.regularMarketVolume
-      };
+      try {
+        const response = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=1mo`);
+        const data = await response.json();
+        if (!data.chart || !data.chart.result || data.chart.result.length === 0) {
+          console.log(`No Yahoo data for ${sym}, using mock`);
+          return getMockQuote(sym);
+        }
+        const meta = data.chart.result[0].meta;
+        return {
+          sym,
+          last: meta.regularMarketPrice,
+          chg: ((meta.regularMarketPrice - meta.chartPreviousClose) / meta.chartPreviousClose) * 100,
+          vol: meta.regularMarketVolume
+        };
+      } catch (err) {
+        console.error(`Error fetching ${sym}, using mock:`, err.message);
+        return getMockQuote(sym);
+      }
     }));
     res.json(results);
   } catch (error) {
-    console.error('Batch error:', error);
+    console.error('Batch error:', error.message);
     res.status(500).json({ error: 'Failed to fetch quotes' });
   }
 });
