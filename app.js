@@ -1,391 +1,97 @@
-// ---------- Storage ----------
-let storage;
-try { storage = window.localStorage; storage.setItem('__test', '1'); storage.removeItem('__test'); } catch (e) { storage = { getItem: () => null, setItem: () => {} }; }
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mentfx Terminal</title>
+    <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <input type="text" class="search-bar" id="global-search" placeholder="Search Symbol...">
+    </header>
 
-// ---------- Watchlists ----------
-let watchlists = { 1: ["SYS.PSX", "UBL.PSX", "BTC-USD"], 2: [] };
-let activeWatchlist = 1;
-let maxWatchlistKey = 2;
-const savedWatchlists = storage.getItem('watchlists');
-if (savedWatchlists) { try { watchlists = JSON.parse(savedWatchlists); } catch(e) {} }
-function saveWatchlists() { storage.setItem('watchlists', JSON.stringify(watchlists)); }
+    <div id="context-menu"><div id="ctx-delete">Delete Watchlist</div></div>
+    <div id="symbol-context-menu"><div id="ctx-delete-symbol">Delete Symbol</div></div>
 
-// ---------- UI Toggles ----------
-function toggleLongShort() {
-    const label = document.getElementById('long-short-label');
-    const switchBtn = document.getElementById('long-short-switch');
-    switchBtn.classList.toggle('short');
-    label.classList.toggle('short');
-    label.textContent = switchBtn.classList.contains('short') ? 'SHORT' : 'LONG';
-}
+    <div class="main-container">
+        <div class="left-panel">
+            <div class="watchlist-header">
+                <span>WATCHLIST</span>
+                <div class="watchlist-tabs">
+                    <button class="active" id="wl-btn-1" onclick="switchWatchlist(1)">1</button>
+                    <button id="wl-btn-2" onclick="switchWatchlist(2)">2</button>
+                    <div id="dynamic-wl-buttons" style="display: flex; gap: 3px;"></div>
+                    <button class="add-btn" id="wl-add-btn" onclick="createNewWatchlist()">+</button>
+                </div>
+            </div>
 
-function setScenario(btn, name) {
-    document.querySelectorAll('.scenario-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-}
+            <div class="watchlist-box" id="watchlist-body-container">
+                <table>
+                    <thead><tr><th>Symbol</th><th>Last</th><th>Chg%</th></tr></thead>
+                    <tbody id="watchlist-body"></tbody>
+                </table>
+            </div>
+            
+            <div class="watchlist-resizer" id="watchlist-resizer"></div>
 
-// ---------- Context Menu for Watchlist Tabs ----------
-let contextTargetKey = null;
-document.addEventListener('contextmenu', function(e) {
-    if (e.target.tagName === 'BUTTON' && e.target.parentElement.id === 'dynamic-wl-buttons') {
-        e.preventDefault();
-        contextTargetKey = parseInt(e.target.textContent);
-        const menu = document.getElementById('context-menu');
-        menu.style.display = 'block';
-        menu.style.left = e.clientX + 'px';
-        menu.style.top = e.clientY + 'px';
-    }
-});
-document.addEventListener('click', function(e) {
-    const menu = document.getElementById('context-menu');
-    if (menu && !menu.contains(e.target)) menu.style.display = 'none';
-});
+            <div class="dropdown-wrap">
+                <span class="dropdown-label">Screener:</span>
+                <select id="asset-category">
+                    <option value="psx" selected>PSX</option>
+                    <option value="crypto">CRYPTO</option>
+                    <option value="forex">FOREX</option>
+                    <option value="indices">INDICES</option>
+                </select>
+            </div>
 
-document.getElementById('ctx-delete').addEventListener('click', function() {
-    if (contextTargetKey !== null) {
-        delete watchlists[contextTargetKey];
-        saveWatchlists();
-        if (activeWatchlist === contextTargetKey) {
-            const keys = Object.keys(watchlists).map(Number).sort((a,b) => a-b);
-            if (keys.length > 0) switchWatchlist(keys[keys.length-1]);
-            else { watchlists = { 1: [], 2: [] }; saveWatchlists(); switchWatchlist(1); }
-        }
-        renderDynamicButtons();
-        renderWatchlist();
-    }
-    contextTargetKey = null;
-    document.getElementById('context-menu').style.display = 'none';
-});
+            <div class="screener-sub-header">
+                <span class="long-label" id="long-short-label">LONG</span>
+                <div class="toggle-switch" id="long-short-switch" onclick="toggleLongShort()"></div>
+                <div class="scenario-btns">
+                    <button class="scenario-btn active" onclick="setScenario(this, 'S01')">S01</button>
+                    <button class="scenario-btn" onclick="setScenario(this, 'S02')">S02</button>
+                    <button class="scenario-btn" onclick="setScenario(this, 'S03')">S03</button>
+                    <button class="scenario-btn" onclick="setScenario(this, 'S04')">S04</button>
+                    <button class="scenario-btn" onclick="setScenario(this, 'S05')">S05</button>
+                </div>
+            </div>
 
-// ---------- Symbol Context Menu (Right-click on watchlist rows) ----------
-let contextSymbol = null;
+            <div id="screener-container">
+                <table>
+                    <thead><tr><th>Symbol</th><th>Last</th><th>Chg%</th><th>Vol</th><th>+</th></tr></thead>
+                    <tbody id="screener-table"></tbody>
+                </table>
+            </div>
+        </div>
 
-document.addEventListener('contextmenu', function(e) {
-    const row = e.target.closest('#watchlist-body tr');
-    if (row) {
-        e.preventDefault();
-        const symbolCell = row.cells[0];
-        contextSymbol = symbolCell.textContent.trim();
-        const menu = document.getElementById('symbol-context-menu');
-        menu.style.display = 'block';
-        menu.style.left = e.clientX + 'px';
-        menu.style.top = e.clientY + 'px';
-    }
-});
+        <div class="center-panel" id="chart-area">
+            <div class="chart-controls">
+                <div class="timeframe-btns">
+                    <button class="tf-btn active" onclick="setTimeframe('1d')">D</button>
+                    <button class="tf-btn" onclick="setTimeframe('1h')">H</button>
+                    <button class="tf-btn" onclick="setTimeframe('15m')">15m</button>
+                    <button class="tf-btn" onclick="setTimeframe('5m')">5m</button>
+                    <button class="tf-btn" onclick="setTimeframe('1m')">1m</button>
+                </div>
+                <div class="indicator-toggles">
+                    <label><input type="checkbox" id="toggle-sma" checked onchange="toggleSMA()"> SMA</label>
+                    <label><input type="checkbox" id="toggle-volume" checked onchange="toggleVolume()"> Volume</label>
+                    <label><input type="checkbox" id="toggle-rsi" onchange="toggleRSI()"> RSI</label>
+                    <label><input type="checkbox" id="toggle-bb" onchange="toggleBB()"> BB</label>
+                </div>
+            </div>
+            <div id="chart"></div>
+            <button class="heatmap-toggle" id="heatmap-toggle-btn" onclick="toggleHeatmap()">▼</button>
+            <div class="heatmap-container" id="heatmap-container">
+                <div class="heatmap-title">STRENGTH / MOMENTUM</div>
+                <div class="heatmap-bar" id="heatmap-bar"></div>
+            </div>
+        </div>
+    </div>
 
-document.addEventListener('click', function(e) {
-    const menu = document.getElementById('symbol-context-menu');
-    if (menu && !menu.contains(e.target)) menu.style.display = 'none';
-});
-
-document.getElementById('ctx-delete-symbol').addEventListener('click', function() {
-    if (contextSymbol) {
-        removeFromWatchlist(contextSymbol);
-        contextSymbol = null;
-    }
-    document.getElementById('symbol-context-menu').style.display = 'none';
-});
-
-// ---------- Create New Watchlist ----------
-function createNewWatchlist() {
-    const nextKey = maxWatchlistKey + 1;
-    if (nextKey > 10) return;
-    watchlists[nextKey] = [];
-    saveWatchlists();
-    renderDynamicButtons();
-    switchWatchlist(nextKey);
-}
-
-// ---------- Dynamic Buttons ----------
-function renderDynamicButtons() {
-    const container = document.getElementById('dynamic-wl-buttons');
-    container.innerHTML = '';
-    const keys = Object.keys(watchlists).map(Number).sort((a, b) => a - b);
-    maxWatchlistKey = keys.length > 0 ? keys[keys.length - 1] : 2;
-    keys.forEach(key => {
-        if (key > 2) {
-            const btn = document.createElement('button');
-            btn.textContent = key;
-            btn.onclick = () => switchWatchlist(key);
-            if (key === activeWatchlist) btn.classList.add('active');
-            container.appendChild(btn);
-        }
-    });
-    document.getElementById('wl-add-btn').style.display = maxWatchlistKey >= 10 ? 'none' : 'block';
-}
-
-// ---------- Switch Watchlist ----------
-function switchWatchlist(num) {
-    activeWatchlist = num;
-    const allButtons = document.querySelectorAll('.watchlist-tabs button');
-    allButtons.forEach(btn => {
-        if (btn.textContent === String(num)) btn.classList.add('active');
-        else if (btn.textContent !== '+') btn.classList.remove('active');
-    });
-    renderWatchlist();
-}
-
-// ---------- Resizer ----------
-const resizer = document.getElementById('watchlist-resizer');
-const watchlistContainer = document.getElementById('watchlist-body-container');
-const savedHeight = storage.getItem('watchlistHeight');
-watchlistContainer.style.height = savedHeight ? savedHeight + 'px' : '200px';
-
-resizer.addEventListener('mousedown', function(e) {
-    e.preventDefault(); 
-    e.stopPropagation();
-    resizer.classList.add('active');
-    document.body.style.userSelect = 'none';
-    let startY = e.clientY;
-    let startHeight = watchlistContainer.offsetHeight;
-    function onMouseMove(e) {
-        let newHeight = startHeight + (e.clientY - startY);
-        if (newHeight < 50) newHeight = 50;
-        if (newHeight > window.innerHeight - 100) newHeight = window.innerHeight - 100;
-        watchlistContainer.style.height = newHeight + 'px';
-    }
-    function onMouseUp() {
-        resizer.classList.remove('active');
-        document.body.style.userSelect = '';
-        storage.setItem('watchlistHeight', watchlistContainer.offsetHeight);
-        document.removeEventListener('mousemove', onMouseMove);
-        document.removeEventListener('mouseup', onMouseUp);
-    }
-    document.addEventListener('mousemove', onMouseMove);
-    document.addEventListener('mouseup', onMouseUp);
-});
-
-// ---------- Heatmap Toggle ----------
-const heatmapContainer = document.getElementById('heatmap-container');
-const heatmapBtn = document.getElementById('heatmap-toggle-btn');
-function toggleHeatmap() {
-    heatmapContainer.classList.toggle('collapsed');
-    try {
-        const newWidth = Math.max(300, window.innerWidth - 320);
-        const newHeight = heatmapContainer.classList.contains('collapsed')
-            ? Math.max(200, window.innerHeight - 50)
-            : Math.max(200, window.innerHeight - 120 - 50);
-        if (typeof chart !== 'undefined' && chart) {
-            chart.applyOptions({ width: newWidth, height: newHeight });
-        }
-        if (heatmapContainer.classList.contains('collapsed')) {
-            heatmapBtn.innerHTML = '▲';
-            heatmapBtn.style.bottom = '5px';
-        } else {
-            heatmapBtn.innerHTML = '▼';
-            heatmapBtn.style.bottom = '120px';
-        }
-    } catch(e) { console.log("Chart not ready"); }
-}
-
-// ========== SYMBOLS LISTS (from symbols-data.js) ==========
-let currentSymbols = psxList;
-
-// ========== LIVE DATA FETCHING ==========
-async function fetchQuote(symbol) {
-  try {
-    const response = await fetch(`/api/quote/${encodeURIComponent(symbol)}`);
-    if (!response.ok) throw new Error('Network response was not ok');
-    return await response.json();
-  } catch (error) {
-    console.error('Quote error for', symbol, error);
-    return { sym: symbol, last: 0, chg: 0, vol: 0 };
-  }
-}
-
-async function fetchCandles(symbol) {
-  try {
-    const response = await fetch(`/api/candles/${encodeURIComponent(symbol)}`);
-    if (!response.ok) throw new Error('Network response was not ok');
-    return await response.json();
-  } catch (error) {
-    console.error('Candles error for', symbol, error);
-    return [];
-  }
-}
-
-async function fetchQuotes(symbols) {
-  try {
-    const query = symbols.join(',');
-    const response = await fetch(`/api/quotes?symbols=${encodeURIComponent(query)}`);
-    if (!response.ok) throw new Error('Network response was not ok');
-    return await response.json();
-  } catch (error) {
-    console.error('Batch quotes error', error);
-    return await Promise.all(symbols.map(fetchQuote));
-  }
-}
-
-// ---------- Add/Remove Watchlist ----------
-function addToWatchlist(symbol) {
-    if (!watchlists[activeWatchlist].includes(symbol)) {
-        watchlists[activeWatchlist].push(symbol);
-        saveWatchlists();
-        renderWatchlist();
-    }
-}
-
-function removeFromWatchlist(symbol) {
-    watchlists[activeWatchlist] = watchlists[activeWatchlist].filter(s => s !== symbol);
-    saveWatchlists();
-    renderWatchlist();
-}
-
-// ---------- Render Functions ----------
-async function renderWatchlist() {
-  const currentSymbolsList = watchlists[activeWatchlist] || [];
-  const stockData = await fetchQuotes(currentSymbolsList);
-  let wlHTML = '';
-  stockData.forEach(stock => {
-    const colorClass = stock.chg > 0 ? 'text-green' : 'text-red';
-    wlHTML += `<tr draggable="true" ondragstart="dragWatchSymbol(event, '${stock.sym}')" onclick="loadChart('${stock.sym}')">
-      <td>${stock.sym}</td><td>${stock.last.toFixed(2)}</td>
-      <td class="${colorClass}">${stock.chg.toFixed(2)}%</td>
-    </tr>`;
-  });
-  document.getElementById('watchlist-body').innerHTML = wlHTML;
-}
-
-async function updateTables() {
-  const stockData = await fetchQuotes(currentSymbols);
-  let scHTML = '';
-  stockData.forEach(stock => {
-    const chgClass = stock.chg > 0 ? 'bg-green' : 'bg-red';
-    scHTML += `<tr draggable="true" ondragstart="dragSymbol(event, '${stock.sym}')" onclick="loadChart('${stock.sym}')">
-      <td>${stock.sym}</td><td>${stock.last.toFixed(2)}</td>
-      <td class="${chgClass}">${stock.chg.toFixed(2)}%</td>
-      <td>${(stock.vol/1000000).toFixed(1)}M</td>
-      <td class="btn-add" onclick="event.stopPropagation(); addToWatchlist('${stock.sym}')">+</td>
-    </tr>`;
-  });
-  document.getElementById('screener-table').innerHTML = scHTML;
-  renderWatchlist();
-}
-
-// ---------- Drag & Drop (Screener → Watchlist) ----------
-let draggedSymbol = null;
-
-function dragSymbol(event, symbol) {
-    draggedSymbol = symbol;
-    event.dataTransfer.setData('text/plain', symbol);
-    event.dataTransfer.effectAllowed = 'copy';
-}
-
-const watchlistBodyContainer = document.getElementById('watchlist-body-container');
-watchlistBodyContainer.addEventListener('dragover', function(e) {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'copy';
-    this.classList.add('drag-over');
-});
-
-watchlistBodyContainer.addEventListener('dragleave', function(e) {
-    this.classList.remove('drag-over');
-});
-
-watchlistBodyContainer.addEventListener('drop', function(e) {
-    e.preventDefault();
-    this.classList.remove('drag-over');
-    const symbol = e.dataTransfer.getData('text/plain') || draggedSymbol;
-    if (symbol) {
-        addToWatchlist(symbol);
-        draggedSymbol = null;
-    }
-});
-
-// ---------- Drag & Drop (Watchlist → Chart area for deletion) ----------
-function dragWatchSymbol(event, symbol) {
-    event.dataTransfer.setData('text/plain', symbol);
-    event.dataTransfer.effectAllowed = 'move';
-}
-
-const chartArea = document.getElementById('chart-area');
-chartArea.addEventListener('dragover', function(e) {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-});
-
-chartArea.addEventListener('drop', function(e) {
-    e.preventDefault();
-    const symbol = e.dataTransfer.getData('text/plain');
-    if (symbol) {
-        removeFromWatchlist(symbol);
-    }
-});
-
-// ---------- Chart Init (Fixed for v4/v5 compatibility) ----------
-let chart = null;
-let candleSeries = null;
-try {
-    const chartWidth = Math.max(300, window.innerWidth - 320);
-    const chartHeight = Math.max(200, window.innerHeight - 120 - 50);
-    chart = LightweightCharts.createChart(document.getElementById('chart'), {
-        width: chartWidth,
-        height: chartHeight,
-        layout: { background: { type: 'solid', color: '#0e1117' }, textColor: '#d1d4dc' },
-        grid: { vertLines: { color: '#1e222d' }, horzLines: { color: '#1e222d' } },
-        timeScale: { timeVisible: true, secondsVisible: false }
-    });
-    
-    // Check if new API (v4+) is available
-    if (typeof chart.addCandlestickSeries === 'function') {
-        // Old API (v3)
-        candleSeries = chart.addCandlestickSeries({ upColor: '#26a69a', downColor: '#ef5350', borderVisible: false });
-    } else {
-        // New API (v4+)
-        candleSeries = chart.addSeries(LightweightCharts.CandlestickSeries, {
-            upColor: '#26a69a',
-            downColor: '#ef5350',
-            borderVisible: false
-        });
-    }
-} catch(e) {
-    console.log("Chart init failed:", e);
-}
-
-async function loadChart(symbol) {
-    try {
-        const candles = await fetchCandles(symbol);
-        if (candleSeries) {
-            candleSeries.setData(candles);
-        }
-    } catch (error) {
-        console.error('Chart loading failed:', error);
-    }
-}
-
-// ---------- Category Change ----------
-const categoryDropdown = document.getElementById('asset-category');
-categoryDropdown.addEventListener('change', function() {
-    const selected = this.value;
-    if (selected === 'psx') currentSymbols = psxList;
-    else if (selected === 'crypto') currentSymbols = cryptoList;
-    else if (selected === 'forex') currentSymbols = forexList;
-    else if (selected === 'indices') currentSymbols = indicesList;
-    updateTables();
-    if (currentSymbols.length > 0) loadChart(currentSymbols[0]);
-});
-
-// ---------- Initial Load ----------
-renderDynamicButtons();
-updateTables();
-loadChart('BTC-USD');
-
-// ---------- Auto Refresh (every 30 sec) ----------
-setInterval(async () => {
-    await updateTables();
-}, 30000);
-
-// ---------- Resize Handler ----------
-window.addEventListener('resize', () => {
-    try {
-        if (chart) {
-            const newWidth = Math.max(300, window.innerWidth - 320);
-            const newHeight = heatmapContainer.classList.contains('collapsed')
-                ? Math.max(200, window.innerHeight - 50)
-                : Math.max(200, window.innerHeight - 120 - 50);
-            chart.applyOptions({ width: newWidth, height: newHeight });
-        }
-    } catch(e) {
-        console.log("Resize error:", e);
-    }
-});
+    <script src="symbols-data.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
