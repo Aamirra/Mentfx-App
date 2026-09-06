@@ -67,6 +67,21 @@
         </div>
 
         <div class="center-panel" id="chart-area">
+            <div class="chart-controls">
+                <div class="timeframe-btns">
+                    <button class="tf-btn active" onclick="setTimeframe('1d')">D</button>
+                    <button class="tf-btn" onclick="setTimeframe('1h')">H</button>
+                    <button class="tf-btn" onclick="setTimeframe('15m')">15m</button>
+                    <button class="tf-btn" onclick="setTimeframe('5m')">5m</button>
+                    <button class="tf-btn" onclick="setTimeframe('1m')">1m</button>
+                </div>
+                <div class="indicator-toggles">
+                    <label><input type="checkbox" id="toggle-sma" checked onchange="toggleSMA()"> SMA</label>
+                    <label><input type="checkbox" id="toggle-volume" checked onchange="toggleVolume()"> Volume</label>
+                    <label><input type="checkbox" id="toggle-rsi" onchange="toggleRSI()"> RSI</label>
+                    <label><input type="checkbox" id="toggle-bb" onchange="toggleBB()"> BB</label>
+                </div>
+            </div>
             <div id="chart"></div>
             <button class="heatmap-toggle" id="heatmap-toggle-btn" onclick="toggleHeatmap()">▼</button>
             <div class="heatmap-container" id="heatmap-container">
