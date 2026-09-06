@@ -1,6 +1,6 @@
 * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
 body { background-color: #0e1117; color: #d1d4dc; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
-header { display: flex; align-items: center; padding: 4px 15px; background: #131722; border-bottom: 1px solid #2a2e39; gap: 15px; }
+header { display: flex; align-items: center; padding: 4px 15px; background: #131722; border-bottom: 1px solid #2a2e39; gap: 15px; flex-shrink: 0; }
 .search-bar { background: #1e222d; border: 1px solid #2a2e39; border-radius: 4px; padding: 4px 15px; width: 350px; color: #fff; outline: none; font-size: 12px; }
 
 .main-container { display: flex; flex: 1; overflow: hidden; }
