@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mentfx Terminal</title>
+    <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <input type="text" class="search-bar" id="global-search" placeholder="Search Symbol...">
+    </header>
+
+    <div id="context-menu"><div id="ctx-delete">Delete Watchlist</div></div>
+    <div id="symbol-context-menu"><div id="ctx-delete-symbol">Delete Symbol</div></div>
+
+    <div class="main-container">
+        <div class="left-panel">
+            <div class="watchlist-header">
+                <span>WATCHLIST</span>
+                <div class="watchlist-tabs">
+                    <button class="active" id="wl-btn-1" onclick="switchWatchlist(1)">1</button>
+                    <button id="wl-btn-2" onclick="switchWatchlist(2)">2</button>
+                    <div id="dynamic-wl-buttons" style="display: flex; gap: 3px;"></div>
+                    <button class="add-btn" id="wl-add-btn" onclick="createNewWatchlist()">+</button>
+                </div>
+            </div>
+
+            <div class="watchlist-box" id="watchlist-body-container">
+                <table>
+                    <thead><tr><th>Symbol</th><th>Last</th><th>Chg%</th></tr></thead>
+                    <tbody id="watchlist-body"></tbody>
+                </table>
+            </div>
+            
+            <div class="watchlist-resizer" id="watchlist-resizer"></div>
+
+            <div class="dropdown-wrap">
+                <span class="dropdown-label">Screener:</span>
+                <select id="asset-category">
+                    <option value="psx" selected>PSX</option>
+                    <option value="crypto">CRYPTO</option>
+                    <option value="forex">FOREX</option>
+                    <option value="indices">INDICES</option>
+                </select>
+            </div>
+
+            <div class="screener-sub-header">
+                <span class="long-label" id="long-short-label">LONG</span>
+                <div class="toggle-switch" id="long-short-switch" onclick="toggleLongShort()"></div>
+                <div class="scenario-btns">
+                    <button class="scenario-btn active" onclick="setScenario(this, 'S01')">S01</button>
+                    <button class="scenario-btn" onclick="setScenario(this, 'S02')">S02</button>
+                    <button class="scenario-btn" onclick="setScenario(this, 'S03')">S03</button>
+                    <button class="scenario-btn" onclick="setScenario(this, 'S04')">S04</button>
+                    <button class="scenario-btn" onclick="setScenario(this, 'S05')">S05</button>
+                </div>
+            </div>
+
+            <div id="screener-container">
+                <table>
+                    <thead><tr><th>Symbol</th><th>Last</th><th>Chg%</th><th>Vol</th><th>+</th></tr></thead>
+                    <tbody id="screener-table"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="center-panel" id="chart-area">
+            <div id="chart"></div>
+            <button class="heatmap-toggle" id="heatmap-toggle-btn" onclick="toggleHeatmap()">▼</button>
+            <div class="heatmap-container" id="heatmap-container">
+                <div class="heatmap-title">STRENGTH / MOMENTUM</div>
+                <div class="heatmap-bar" id="heatmap-bar"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Symbols data file pehle load hogi -->
+    <script src="symbols-data.js"></script>
+    <!-- Main app JS -->
+    <script src="app.js"></script>
+</body>
+</html>
